@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>CEMS Portal</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --border: #e5e7eb;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; }
+        .navbar { background-color: #1e293b; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .navbar h1 { margin: 0; font-size: 1.5rem; font-weight: 600; }
+        .logout-btn { color: white; text-decoration: none; background: #dc2626; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; transition: 0.2s; }
+        .logout-btn:hover { background: #b91c1c; }
+        .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 2rem; }
+        .card h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid var(--bg); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        input { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 1rem; box-sizing: border-box; font-size: 1rem; }
+        input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
+        button { width: 100%; background-color: var(--primary); color: white; border: none; padding: 0.75rem; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
+        button:hover { background-color: var(--primary-hover); }
+        .data-item { padding: 1rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .badge { background-color: #dbeafe; color: var(--primary); padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: 600; font-size: 0.9rem; }
+        .login-box { max-width: 400px; margin: 5rem auto; text-align: center; }
+        
+        /* Table Styles for Admin Data */
+        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+        th { padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border); color: #6b7280; font-size: 0.9rem; }
+        td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <h1>CEMS Portal</h1>
+        <div th:if="${session.role != null}">
+            Welcome, <span th:text="${session.name}"></span> | 
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <div class="container login-box" th:if="${session.role == null}">
+        <div class="card">
+            <h2>Sign In</h2>
+            
+            <div th:if="${param.error}" style="color: #dc2626; background: #fee2e2; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-weight: bold; border: 1px solid #f87171;">
+                Invalid Username or Password!
+            </div>
+            
+            <form action="/login" method="post">
+                <input type="text" name="username" placeholder="Username" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="container" th:if="${session.role != null}">
+        
+        <div th:if="${session.role == 'ADMIN'}">
+            
+            <div class="card">
+                <h3>🔐 System User Credentials</h3>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>Password</th>
+                                <th style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="emp : ${employees}">
+                                <td th:text="${emp.name}" style="font-weight: 500;"></td>
+                                <td th:text="${emp.username}" style="color: #4b5563;"></td>
+                                <td>
+                                    <span th:id="'pwd-mask-' + ${emp.id}">••••••••</span>
+                                    <span th:id="'pwd-real-' + ${emp.id}" th:text="${emp.password}" style="display: none; font-family: monospace; font-size: 1.1rem; color: var(--primary); font-weight: bold;"></span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <button type="button" th:onclick="'togglePwd(' + ${emp.id} + ', this)'" style="width: auto; padding: 0.3rem 0.6rem; background-color: #6b7280; font-size: 0.8rem; border-radius: 4px;">👁️ Show</button>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(employees)}">
+                                <td colspan="4" style="text-align: center; padding: 1rem; color: gray;">No users found in the system.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>+ Create New Employee Account</h3>
+                <form action="/add-employee" method="post" style="max-width: 500px; display: flex; flex-direction: column; gap: 1rem;">
+                    <input type="text" name="name" placeholder="Full Name (e.g. Sarah Smith)" required style="margin: 0;">
+                    <div style="display: flex; gap: 1rem;">
+                        <input type="text" name="username" placeholder="New Username" required style="margin: 0;">
+                        <input type="password" name="password" placeholder="New Password" required style="margin: 0;">
+                    </div>
+                    <button type="submit">Create Account</button>
+                </form>
+                <p style="font-size: 0.8rem; color: gray; margin-top: 0.5rem;">*Credentials will be automatically saved</p>
+            </div>
+
+            <div class="card">
+                <h3>Pending Leave Requests</h3>
+                <div th:each="leave : ${leaves}" th:if="${leave.status == 'PENDING'}" class="data-item">
+                    <div>
+                        <strong><span th:text="${leave.employee.name}"></span></strong> (Employee ID: <span th:text="${leave.employee.id}"></span>)<br>
+                        <span th:text="${leave.type}" style="color: #6b7280; font-size: 0.9rem;"></span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <form action="/update-leave" method="post" style="margin: 0;">
+                            <input type="hidden" name="leaveId" th:value="${leave.id}">
+                            <input type="hidden" name="action" value="APPROVE">
+                            <button type="submit" style="background-color: #059669; width: auto; padding: 0.5rem 1rem;">Approve</button>
+                        </form>
+                        <form action="/update-leave" method="post" style="margin: 0;">
+                            <input type="hidden" name="leaveId" th:value="${leave.id}">
+                            <input type="hidden" name="action" value="REJECT">
+                            <button type="submit" style="background-color: #dc2626; width: auto; padding: 0.5rem 1rem;">Reject</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div th:if="${#lists.isEmpty(leaves.?[status == 'PENDING'])}" style="color: gray; text-align: center; padding: 1rem;">
+                    No pending leave requests.
+                </div>
+            </div>
+        </div>
+
+        <div th:if="${session.role == 'EMPLOYEE'}">
+            <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; border: none; padding: 0;">My Leave Dashboard</h3>
+                <div class="badge" style="font-size: 1.1rem; padding: 0.5rem 1rem;">Balance: <span th:text="${employee.leaveBalance}"></span> days</div>
+            </div>
+
+            <div class="card">
+                <h3>📝 Submit New Leave Request</h3>
+                <form action="/apply-leave" method="post" style="display: flex; gap: 1rem;">
+                    <input type="text" name="reason" placeholder="Reason (e.g. Sick, Vacation)" required style="margin: 0;">
+                    <button type="submit" style="width: 200px; background-color: #059669;">Submit Request</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>My Request History</h3>
+                <div th:each="leave : ${myLeaves}" class="data-item">
+                    <div>
+                        <strong>Date Submitted: </strong> <span th:text="${leave.startDate}"></span><br>
+                        <span th:text="${leave.type}" style="color: #6b7280; font-size: 0.9rem;"></span>
+                    </div>
+                    <div class="badge" th:text="${leave.status}" 
+                         th:style="${leave.status == 'APPROVED' ? 'background-color: #d1fae5; color: #059669;' : (leave.status == 'REJECTED' ? 'background-color: #fee2e2; color: #dc2626;' : 'background-color: #fef08a; color: #854d0e;')}">
+                    </div>
+                </div>
+                
+                <div th:if="${#lists.isEmpty(myLeaves)}" style="color: gray; text-align: center; padding: 1rem;">
+                    You have not submitted any leave requests yet.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function togglePwd(id, btn) {
+            const mask = document.getElementById('pwd-mask-' + id);
+            const real = document.getElementById('pwd-real-' + id);
+            
+            if (real.style.display === 'none') {
+                // Show real password
+                real.style.display = 'inline';
+                mask.style.display = 'none';
+                btn.innerHTML = '🙈 Hide';
+                btn.style.backgroundColor = '#dc2626'; // Turns red when showing
+            } else {
+                // Hide real password
+                real.style.display = 'none';
+                mask.style.display = 'inline';
+                btn.innerHTML = '👁️ Show';
+                btn.style.backgroundColor = '#6b7280'; // Returns to gray
+            }
+        }
+    </script>
+</body>
+</html>
