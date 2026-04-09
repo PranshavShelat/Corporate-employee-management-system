@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>CEMS Portal</title>
+    <title>CEMS Enterprise</title>
     <style>
         :root {
             --primary: #2563eb;
@@ -16,178 +16,339 @@
         .navbar h1 { margin: 0; font-size: 1.5rem; font-weight: 600; }
         .logout-btn { color: white; text-decoration: none; background: #dc2626; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; transition: 0.2s; }
         .logout-btn:hover { background: #b91c1c; }
-        .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
-        .card { background: var(--card-bg); border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 2rem; }
-        .card h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid var(--bg); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
-        input { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 1rem; box-sizing: border-box; font-size: 1rem; }
-        input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
-        button { width: 100%; background-color: var(--primary); color: white; border: none; padding: 0.75rem; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
-        button:hover { background-color: var(--primary-hover); }
-        .data-item { padding: 1rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
-        .badge { background-color: #dbeafe; color: var(--primary); padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: 600; font-size: 0.9rem; }
-        .login-box { max-width: 400px; margin: 5rem auto; text-align: center; }
+        .container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
         
-        /* Table Styles for Admin Data */
+        .card { background: var(--card-bg); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 2rem; }
+        .card h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid var(--bg); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        
+        .form-row { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-end; }
+        .form-row > * { flex: 1; margin: 0; }
+        input, select { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; }
+        button { width: 100%; background-color: var(--primary); color: white; border: none; padding: 0.75rem; border-radius: 6px; font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: 0.2s; }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
         th { padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border); color: #6b7280; font-size: 0.9rem; }
         td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+        
+        .badge { background-color: #dbeafe; color: var(--primary); padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: 600; font-size: 0.85rem; display: inline-block; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+        details { background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem; }
+        summary { font-weight: bold; cursor: pointer; color: var(--primary); outline: none; }
     </style>
 </head>
 <body>
 
-    <div class="navbar">
-        <h1>CEMS Portal</h1>
-        <div th:if="${session.role != null}">
-            Welcome, <span th:text="${session.name}"></span> | 
-            <a href="/logout" class="logout-btn">Logout</a>
-        </div>
+<div class="navbar">
+    <h1>CEMS Enterprise</h1>
+    <div th:if="${session.role != null}">
+        Welcome, <span th:text="${session.name}"></span> (<span th:text="${session.role}"></span>) | 
+        <a href="/logout" class="logout-btn">Logout</a>
     </div>
+</div>
 
-    <div class="container login-box" th:if="${session.role == null}">
-        <div class="card">
-            <h2>Sign In</h2>
-            
-            <div th:if="${param.error}" style="color: #dc2626; background: #fee2e2; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-weight: bold; border: 1px solid #f87171;">
-                Invalid Username or Password!
-            </div>
-            
-            <form action="/login" method="post">
-                <input type="text" name="username" placeholder="Username" required>
-                <input type="password" name="password" placeholder="Password" required>
-                <button type="submit">Login</button>
-            </form>
+<div class="container" th:if="${session.role == null}" style="max-width: 400px; text-align: center; margin-top: 5rem;">
+    <div class="card">
+        <h2>Sign In</h2>
+        <div th:if="${param.error}" style="color: #dc2626; background: #fee2e2; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #f87171;">
+            Invalid Credentials!
         </div>
+        <form action="/login" method="post">
+            <input type="text" name="username" placeholder="Username" required style="margin-bottom: 1rem;">
+            <input type="password" name="password" placeholder="Password" required style="margin-bottom: 1rem;">
+            <button type="submit">Log In</button>
+        </form>
     </div>
+</div>
 
-    <div class="container" th:if="${session.role != null}">
+<div class="container" th:if="${session.role != null}">
+
+    <div th:if="${session.role == 'ADMIN'}">
         
-        <div th:if="${session.role == 'ADMIN'}">
-            
-            <div class="card">
-                <h3>🔐 System User Credentials</h3>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Username</th>
-                                <th>Password</th>
-                                <th style="text-align: center;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr th:each="emp : ${employees}">
-                                <td th:text="${emp.name}" style="font-weight: 500;"></td>
-                                <td th:text="${emp.username}" style="color: #4b5563;"></td>
-                                <td>
-                                    <span th:id="'pwd-mask-' + ${emp.id}">••••••••</span>
-                                    <span th:id="'pwd-real-' + ${emp.id}" th:text="${emp.password}" style="display: none; font-family: monospace; font-size: 1.1rem; color: var(--primary); font-weight: bold;"></span>
-                                </td>
-                                <td style="text-align: center;">
-                                    <button type="button" th:onclick="'togglePwd(' + ${emp.id} + ', this)'" style="width: auto; padding: 0.3rem 0.6rem; background-color: #6b7280; font-size: 0.8rem; border-radius: 4px;">👁️ Show</button>
-                                </td>
-                            </tr>
-                            <tr th:if="${#lists.isEmpty(employees)}">
-                                <td colspan="4" style="text-align: center; padding: 1rem; color: gray;">No users found in the system.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+        <div class="card">
+            <h3>🔐 System User Roster</h3>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Department</th>
+                            <th>Assigned Projects</th>
+                            <th>Password</th>
+                            <th style="text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="emp : ${employees}">
+                            <td th:text="${emp.name}" style="font-weight: 500;"></td>
+                            <td><span class="badge" th:text="${emp.role}"></span></td>
+                            <td th:text="${emp.department != null ? emp.department.deptName : 'Unassigned'}" style="font-style: italic; color: gray;"></td>
+                            <td>
+                                <span th:each="p : ${emp.projects}" class="badge" style="background-color: #fef08a; color: #854d0e; margin-right: 4px;" th:text="${p.title}"></span>
+                                <span th:if="${#lists.isEmpty(emp.projects)}" style="color: gray; font-size: 0.85rem;">None</span>
+                            </td>
+                            <td>
+                                <span th:id="'pwd-mask-' + ${emp.id}">••••••••</span>
+                                <span th:id="'pwd-real-' + ${emp.id}" th:text="${emp.password}" style="display: none; font-family: monospace; color: var(--primary); font-weight: bold;"></span>
+                            </td>
+                            <td style="text-align: center;">
+                                <button type="button" th:onclick="'togglePwd(' + ${emp.id} + ', this)'" style="width: auto; padding: 0.3rem 0.6rem; background-color: #6b7280; font-size: 0.8rem;">👁️ Show</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
+        </div>
 
+        <div class="grid-2">
             <div class="card">
-                <h3>+ Create New Employee Account</h3>
-                <form action="/add-employee" method="post" style="max-width: 500px; display: flex; flex-direction: column; gap: 1rem;">
-                    <input type="text" name="name" placeholder="Full Name (e.g. Sarah Smith)" required style="margin: 0;">
-                    <div style="display: flex; gap: 1rem;">
-                        <input type="text" name="username" placeholder="New Username" required style="margin: 0;">
-                        <input type="password" name="password" placeholder="New Password" required style="margin: 0;">
+                <h3>+ Create System User</h3>
+                <form action="/add-user" method="post">
+                    <input type="text" name="name" placeholder="Full Name" required style="margin-bottom: 0.5rem;">
+                    <div class="form-row">
+                        <input type="text" name="username" placeholder="Username" required>
+                        <input type="password" name="password" placeholder="Password" required>
                     </div>
+                    <select name="role" style="margin-bottom: 1rem;">
+                        <option value="EMPLOYEE">Standard Employee</option>
+                        <option value="MANAGER">Manager</option>
+                    </select>
                     <button type="submit">Create Account</button>
                 </form>
-                <p style="font-size: 0.8rem; color: gray; margin-top: 0.5rem;">*Credentials will be automatically saved</p>
             </div>
 
             <div class="card">
-                <h3>Pending Leave Requests</h3>
-                <div th:each="leave : ${leaves}" th:if="${leave.status == 'PENDING'}" class="data-item">
-                    <div>
-                        <strong><span th:text="${leave.employee.name}"></span></strong> (Employee ID: <span th:text="${leave.employee.id}"></span>)<br>
-                        <span th:text="${leave.type}" style="color: #6b7280; font-size: 0.9rem;"></span>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <form action="/update-leave" method="post" style="margin: 0;">
-                            <input type="hidden" name="leaveId" th:value="${leave.id}">
-                            <input type="hidden" name="action" value="APPROVE">
-                            <button type="submit" style="background-color: #059669; width: auto; padding: 0.5rem 1rem;">Approve</button>
-                        </form>
-                        <form action="/update-leave" method="post" style="margin: 0;">
-                            <input type="hidden" name="leaveId" th:value="${leave.id}">
-                            <input type="hidden" name="action" value="REJECT">
-                            <button type="submit" style="background-color: #dc2626; width: auto; padding: 0.5rem 1rem;">Reject</button>
-                        </form>
-                    </div>
-                </div>
-                
-                <div th:if="${#lists.isEmpty(leaves.?[status == 'PENDING'])}" style="color: gray; text-align: center; padding: 1rem;">
-                    No pending leave requests.
-                </div>
-            </div>
-        </div>
+                <h3>🔗 Assign Employees</h3>
+                <form action="/assign-department" method="post" class="form-row" style="margin-bottom: 1.5rem;">
+                    <select name="empId" required><option value="" disabled selected>Select Employee</option><option th:each="emp : ${employees}" th:value="${emp.id}" th:text="${emp.name}"></option></select>
+                    <select name="deptId" required><option value="" disabled selected>Select Department</option><option th:each="dept : ${departments}" th:value="${dept.id}" th:text="${dept.deptName}"></option></select>
+                    <button type="submit" style="width: auto;">Assign Dept</button>
+                </form>
 
-        <div th:if="${session.role == 'EMPLOYEE'}">
-            <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; border: none; padding: 0;">My Leave Dashboard</h3>
-                <div class="badge" style="font-size: 1.1rem; padding: 0.5rem 1rem;">Balance: <span th:text="${employee.leaveBalance}"></span> days</div>
-            </div>
-
-            <div class="card">
-                <h3>📝 Submit New Leave Request</h3>
-                <form action="/apply-leave" method="post" style="display: flex; gap: 1rem;">
-                    <input type="text" name="reason" placeholder="Reason (e.g. Sick, Vacation)" required style="margin: 0;">
-                    <button type="submit" style="width: 200px; background-color: #059669;">Submit Request</button>
+                <form action="/assign-project" method="post" class="form-row">
+                    <select name="empId" required><option value="" disabled selected>Select Employee</option><option th:each="emp : ${employees}" th:value="${emp.id}" th:text="${emp.name}"></option></select>
+                    <select name="projId" required><option value="" disabled selected>Select Project</option><option th:each="proj : ${projects}" th:value="${proj.id}" th:text="${proj.title}"></option></select>
+                    <button type="submit" style="width: auto;">Assign Proj</button>
                 </form>
             </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h3>🏢 Manage Departments</h3>
+                <form action="/add-department" method="post" class="form-row">
+                    <input type="text" name="deptName" placeholder="Dept Name" required>
+                    <input type="text" name="location" placeholder="Location" required>
+                    <button type="submit" style="width: auto;">Add</button>
+                </form>
+                <table>
+                    <tr><th>ID</th><th>Name</th><th>Location</th></tr>
+                    <tr th:each="dept : ${departments}"><td th:text="${dept.id}"></td><td th:text="${dept.deptName}"></td><td th:text="${dept.location}"></td></tr>
+                </table>
+            </div>
 
             <div class="card">
-                <h3>My Request History</h3>
-                <div th:each="leave : ${myLeaves}" class="data-item">
-                    <div>
-                        <strong>Date Submitted: </strong> <span th:text="${leave.startDate}"></span><br>
-                        <span th:text="${leave.type}" style="color: #6b7280; font-size: 0.9rem;"></span>
-                    </div>
-                    <div class="badge" th:text="${leave.status}" 
-                         th:style="${leave.status == 'APPROVED' ? 'background-color: #d1fae5; color: #059669;' : (leave.status == 'REJECTED' ? 'background-color: #fee2e2; color: #dc2626;' : 'background-color: #fef08a; color: #854d0e;')}">
-                    </div>
-                </div>
-                
-                <div th:if="${#lists.isEmpty(myLeaves)}" style="color: gray; text-align: center; padding: 1rem;">
-                    You have not submitted any leave requests yet.
-                </div>
+                <h3>📋 Manage Projects</h3>
+                <form action="/add-project" method="post" class="form-row">
+                    <input type="text" name="title" placeholder="Project Title" required>
+                    <button type="submit" style="width: auto;">Add</button>
+                </form>
+                <table>
+                    <tr><th>ID</th><th>Title</th><th>Progress</th></tr>
+                    <tr th:each="proj : ${projects}"><td th:text="${proj.id}"></td><td th:text="${proj.title}"></td><td><span class="badge" th:text="${proj.progressPercent} + '%'"></span></td></tr>
+                </table>
             </div>
         </div>
 
+        <div class="card">
+            <h3>⏱️ System Attendance Logs</h3>
+            
+            <details>
+                <summary>📥 View Active Clock-Ins</summary>
+                <table style="margin-top: 1rem;">
+                    <tr><th>Employee</th><th>Date</th><th>Clock-In Time</th></tr>
+                    <tr th:each="att : ${attendances}">
+                        <td th:text="${att.employee.name}" style="font-weight: bold;"></td>
+                        <td th:text="${att.date}"></td>
+                        <td><span class="badge" th:text="${att.timeIn}"></span></td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(attendances)}"><td colspan="3" style="color: gray;">No clock-ins recorded.</td></tr>
+                </table>
+            </details>
+
+            <details style="margin-top: 1rem;">
+                <summary>📤 View Completed Shifts (Clock-Outs)</summary>
+                <table style="margin-top: 1rem;">
+                    <tr><th>Employee</th><th>Date</th><th>Clock-Out Time</th><th>Total Hours</th></tr>
+                    <tr th:each="att : ${attendances}" th:if="${att.timeOut != null}">
+                        <td th:text="${att.employee.name}" style="font-weight: bold;"></td>
+                        <td th:text="${att.date}"></td>
+                        <td><span class="badge" th:text="${att.timeOut}" style="background-color: #fee2e2; color: #991b1b;"></span></td>
+                        <td th:text="${#numbers.formatDecimal(att.hoursWorked, 1, 2)} + ' hrs'"></td>
+                    </tr>
+                </table>
+            </details>
+        </div>
+        
+        <div class="card">
+            <h3>Pending Leave Requests</h3>
+            <table>
+                <tr><th>Employee</th><th>Dates</th><th>Reason</th><th>Action</th></tr>
+                <tr th:each="leave : ${leaves}" th:if="${leave.status == 'PENDING'}">
+                    <td th:text="${leave.employee.name}"></td>
+                    <td><span th:text="${leave.startDate}"></span> to <span th:text="${leave.endDate}"></span></td>
+                    <td th:text="${leave.type}"></td>
+                    <td style="display: flex; gap: 5px;">
+                        <form action="/update-leave" method="post" style="margin: 0;"><input type="hidden" name="leaveId" th:value="${leave.id}"><input type="hidden" name="action" value="APPROVED"><button type="submit" style="background-color: #059669; padding: 0.3rem 0.6rem; font-size: 0.8rem;">Approve</button></form>
+                        <form action="/update-leave" method="post" style="margin: 0;"><input type="hidden" name="leaveId" th:value="${leave.id}"><input type="hidden" name="action" value="REJECTED"><button type="submit" style="background-color: #dc2626; padding: 0.3rem 0.6rem; font-size: 0.8rem;">Reject</button></form>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>💰 Run Payroll (Strategy Pattern)</h3>
+            <table>
+                <tr><th>Employee</th><th>Basic Pay ($)</th><th>Action</th></tr>
+                <tr th:each="emp : ${employees}">
+                    <td th:text="${emp.name}"></td>
+                    <td>
+                        <form action="/generate-salary" method="post" style="margin:0; display:flex; gap: 10px;">
+                            <input type="hidden" name="empId" th:value="${emp.id}">
+                            <input type="number" name="basic" placeholder="e.g. 5000" style="margin:0;" required>
+                            <button type="submit" style="width: auto;">Generate Slip</button>
+                        </form>
+                    </td>
+                </tr>
+            </table>
+        </div>
     </div>
 
-    <script>
-        function togglePwd(id, btn) {
-            const mask = document.getElementById('pwd-mask-' + id);
-            const real = document.getElementById('pwd-real-' + id);
+    <div th:if="${session.role == 'EMPLOYEE' or session.role == 'MANAGER'}">
+        
+        <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0;">Employee Dashboard</h2>
             
-            if (real.style.display === 'none') {
-                // Show real password
-                real.style.display = 'inline';
-                mask.style.display = 'none';
-                btn.innerHTML = '🙈 Hide';
-                btn.style.backgroundColor = '#dc2626'; // Turns red when showing
-            } else {
-                // Hide real password
-                real.style.display = 'none';
-                mask.style.display = 'inline';
-                btn.innerHTML = '👁️ Show';
-                btn.style.backgroundColor = '#6b7280'; // Returns to gray
-            }
+            <div style="display: flex; gap: 10px;">
+                <form action="/clock-in" method="post" style="margin: 0;">
+                    <button th:if="${!clockedInToday}" type="submit" style="background-color: #059669; padding: 0.75rem 1.5rem;">📥 Clock In</button>
+                    <button th:if="${clockedInToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">✅ Clocked In</button>
+                </form>
+
+                <form action="/clock-out" method="post" style="margin: 0;">
+                    <button th:if="${clockedInToday and !clockedOutToday}" type="submit" style="background-color: #dc2626; padding: 0.75rem 1.5rem;">📤 Clock Out</button>
+                    <button th:if="${clockedOutToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">🔒 Shift Ended</button>
+                    <button th:if="${!clockedInToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">📤 Clock Out</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card" th:if="${session.role == 'MANAGER'}" style="border: 2px solid #8b5cf6; background-color: #f5f3ff;">
+            <h3 style="color: #6d28d9; border-bottom-color: #ddd6fe;">👑 Manager Portal: My Department Team</h3>
+            
+            <div th:if="${employee.department == null}" style="color: gray; text-align: center; padding: 1rem;">
+                You have not been assigned to a Department yet. Contact your Admin.
+            </div>
+            
+            <table th:if="${employee.department != null}">
+                <tr><th>Employee Name</th><th>Role</th><th>Contact (Username)</th></tr>
+                <tr th:each="member : ${myTeam}">
+                    <td th:text="${member.name}" style="font-weight: 500;"></td>
+                    <td><span class="badge" th:text="${member.role}"></span></td>
+                    <td th:text="${member.username}"></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h3>🛠️ My Assigned Projects</h3>
+                <table>
+                    <tr><th>Title</th><th>Current</th><th>Update Progress</th></tr>
+                    <tr th:each="proj : ${employee.projects}">
+                        <td th:text="${proj.title}" style="font-weight: 500;"></td>
+                        <td><span class="badge" th:text="${proj.progressPercent} + '%'"></span></td>
+                        <td>
+                            <form action="/update-project" method="post" style="display: flex; gap: 5px; margin: 0;">
+                                <input type="hidden" name="projId" th:value="${proj.id}">
+                                <input type="number" name="progressPercent" min="0" max="100" th:value="${proj.progressPercent}" required style="padding: 0.4rem; margin: 0; width: 70px;">
+                                <button type="submit" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem;">Update</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(employee.projects)}"><td colspan="3" style="color: gray; text-align: center;">You have no assigned projects.</td></tr>
+                </table>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0; border: none; padding: 0;">📝 Apply for Leave</h3>
+                    <span class="badge">Balance: <span th:text="${employee.leaveBalance}"></span> days</span>
+                </div>
+                <form action="/apply-leave" method="post">
+                    <input type="text" name="reason" placeholder="Reason (e.g. Vacation, Sick)" required>
+                    <div class="form-row">
+                        <div><label style="font-size: 0.8rem; color: gray;">Start Date</label><input type="date" name="startDate" required></div>
+                        <div><label style="font-size: 0.8rem; color: gray;">End Date</label><input type="date" name="endDate" required></div>
+                    </div>
+                    <button type="submit">Submit Leave Request</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h3>My Request History</h3>
+                <table>
+                    <tr><th>Dates</th><th>Status</th></tr>
+                    <tr th:each="leave : ${myLeaves}">
+                        <td><span th:text="${leave.startDate}"></span> to <span th:text="${leave.endDate}"></span></td>
+                        <td><span class="badge" th:text="${leave.status}"
+                            th:style="${leave.status == 'APPROVED' ? 'background: #d1fae5; color: #059669;' : (leave.status == 'REJECTED' ? 'background: #fee2e2; color: #dc2626;' : 'background: #fef08a; color: #854d0e;')}">
+                            </span>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(myLeaves)}"><td colspan="2" style="color: gray;">No requests yet.</td></tr>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3>My Salary Slips</h3>
+                <table>
+                    <tr><th>Month</th><th>Basic Pay</th><th>Tax</th><th>Net Pay</th></tr>
+                    <tr th:each="slip : ${mySlips}">
+                        <td th:text="${slip.month}"></td>
+                        <td>$<span th:text="${slip.basicPay}"></span></td>
+                        <td style="color: #dc2626;">-$<span th:text="${slip.tax}"></span></td>
+                        <td style="font-weight: bold; color: #059669;">$<span th:text="${slip.netPay}"></span></td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(mySlips)}"><td colspan="4" style="color: gray;">No salary slips generated yet.</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePwd(id, btn) {
+        const mask = document.getElementById('pwd-mask-' + id);
+        const real = document.getElementById('pwd-real-' + id);
+        if (real.style.display === 'none') {
+            real.style.display = 'inline';
+            mask.style.display = 'none';
+            btn.innerHTML = '🙈 Hide';
+            btn.style.backgroundColor = '#dc2626';
+        } else {
+            real.style.display = 'none';
+            mask.style.display = 'inline';
+            btn.innerHTML = '👁️ Show';
+            btn.style.backgroundColor = '#6b7280';
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>

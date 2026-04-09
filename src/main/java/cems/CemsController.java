@@ -1,145 +1,80 @@
 package cems;
 
-import cems.models.Employee;
-import cems.models.LeaveRequest;
+import cems.models.*;
+import cems.patterns.*;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Scanner;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 
 @Controller
 public class CemsController {
 
-    @Autowired
-    private EmployeeRepo employeeRepo;
-    
-    @Autowired
-    private LeaveRepo leaveRepo;
-
-    // --- NEW FIX: HYDRATE DATABASE FROM TEXT FILE ---
-    // This solves the issue of the database wiping when the server restarts
-    private void syncTextFileToDatabase() {
-        try {
-            File myObj = new File("credentials.txt");
-            if (myObj.exists()) {
-                Scanner myReader = new Scanner(myObj);
-                while (myReader.hasNextLine()) {
-                    String data = myReader.nextLine();
-                    if (data.trim().isEmpty()) continue; // Skip empty lines
-
-                    String[] parts = data.split(",");
-                    if (parts.length >= 3) {
-                        String fileUser = parts[0].trim();
-                        String filePass = parts[1].trim();
-                        String fileRole = parts[2].trim();
-
-                        // If it's an employee, make sure they exist in the database
-                        if (fileRole.equals("EMPLOYEE")) {
-                            boolean exists = false;
-                            for (Employee emp : employeeRepo.findAll()) {
-                                if (emp.getUsername().equals(fileUser)) {
-                                    exists = true;
-                                    break;
-                                }
-                            }
-                            
-                            // If they are in the text file but NOT the database, recreate them
-                            if (!exists) {
-                                Employee newEmp = new Employee();
-                                newEmp.setName(fileUser); // Use username as fallback name
-                                newEmp.setUsername(fileUser);
-                                newEmp.setPassword(filePass);
-                                employeeRepo.save(newEmp);
-                            }
-                        }
-                    }
-                }
-                myReader.close();
-            }
-        } catch (Exception e) {
-            System.out.println("Could not sync credentials to DB.");
-        }
-    }
+    @Autowired private EmployeeRepo employeeRepo;
+    @Autowired private LeaveRepo leaveRepo;
+    @Autowired private AttendanceRepo attendanceRepo;
+    @Autowired private SalarySlipRepo salaryRepo;
+    @Autowired private DepartmentRepo departmentRepo;
+    @Autowired private ProjectRepo projectRepo;
+    @Autowired private UserFactory userFactory;
 
     @GetMapping("/")
     public String dashboard(HttpSession session, Model model) {
         String role = (String) session.getAttribute("role");
-        
-        if (role == null) {
-            return "index"; 
-        }
+        if (role == null) return "index"; 
         
         if (role.equals("ADMIN")) {
-            syncTextFileToDatabase(); // Run the sync before loading the table!
             model.addAttribute("employees", employeeRepo.findAll());
             model.addAttribute("leaves", leaveRepo.findAll());
-        } else if (role.equals("EMPLOYEE")) {
-            Employee emp = (Employee) session.getAttribute("user");
-            emp = employeeRepo.findById(emp.getId()).orElse(emp);
+            model.addAttribute("departments", departmentRepo.findAll());
+            model.addAttribute("projects", projectRepo.findAll());
+            model.addAttribute("attendances", attendanceRepo.findAll());
+        } else {
+            Employee emp = employeeRepo.findById(((Employee) session.getAttribute("user")).getId()).orElse(null);
             model.addAttribute("employee", emp);
             model.addAttribute("myLeaves", emp.getLeaveRequests());
+            model.addAttribute("mySlips", emp.getSalarySlips());
+            
+            // --- NEW: MANAGER SPECIFIC DATA ---
+            if (emp.getRole().equals("MANAGER") && emp.getDepartment() != null) {
+                // Pass the whole department roster to the manager
+                model.addAttribute("myTeam", emp.getDepartment().getEmployees());
+            }
+            
+            AttendanceRecord todayRecord = emp.getAttendanceRecords().stream()
+                                    .filter(a -> a.getDate().equals(LocalDate.now()))
+                                    .findFirst().orElse(null);
+                                    
+            boolean clockedInToday = todayRecord != null;
+            boolean clockedOutToday = todayRecord != null && todayRecord.getTimeOut() != null;
+            
+            model.addAttribute("clockedInToday", clockedInToday);
+            model.addAttribute("clockedOutToday", clockedOutToday);
         }
         return "index"; 
     }
 
     @PostMapping("/login")
     public String login(@RequestParam String username, @RequestParam String password, HttpSession session) {
-        String role = null;
-        
-        try {
-            File myObj = new File("credentials.txt");
-            if (myObj.exists()) {
-                Scanner myReader = new Scanner(myObj);
-                while (myReader.hasNextLine()) {
-                    String data = myReader.nextLine();
-                    if (data.trim().isEmpty()) continue; 
-                    
-                    String[] parts = data.split(","); 
-                    
-                    if (parts.length >= 3) {
-                        String fileUser = parts[0].trim();
-                        String filePass = parts[1].trim();
-                        String fileRole = parts[2].trim();
-                        
-                        if (fileUser.equals(username) && filePass.equals(password)) {
-                            role = fileRole;
-                            break;
-                        }
-                    }
-                }
-                myReader.close();
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        if (username.equals("admin") && password.equals("admin")) {
+            session.setAttribute("role", "ADMIN");
+            session.setAttribute("name", "Administrator");
+            return "redirect:/";
         }
-
-        if (role != null) {
-            session.setAttribute("role", role);
-            
-            if (role.equals("ADMIN")) {
-                session.setAttribute("name", "Administrator");
+        for (Employee emp : employeeRepo.findAll()) {
+            if (emp.getUsername().equals(username) && emp.getPassword().equals(password)) {
+                session.setAttribute("role", emp.getRole());
+                session.setAttribute("user", emp);
+                session.setAttribute("name", emp.getName());
                 return "redirect:/";
             }
-            
-            if (role.equals("EMPLOYEE")) {
-                syncTextFileToDatabase(); // Run sync so the employee DB record is ready
-                for (Employee emp : employeeRepo.findAll()) {
-                    if (emp.getUsername().equals(username)) {
-                        session.setAttribute("user", emp);
-                        session.setAttribute("name", emp.getName());
-                        return "redirect:/";
-                    }
-                }
-            }
         }
-        
         return "redirect:/?error=true";
     }
 
@@ -149,59 +84,115 @@ public class CemsController {
         return "redirect:/";
     }
 
-    @PostMapping("/add-employee")
-    public String addEmployee(@RequestParam String name, 
-                              @RequestParam String username, 
-                              @RequestParam String password) {
-        
-        // 1. Save to Database
-        Employee emp = new Employee();
+    @PostMapping("/add-user")
+    public String addUser(@RequestParam String name, @RequestParam String username, 
+                          @RequestParam String password, @RequestParam String role) {
+        Employee emp = (Employee) userFactory.createUser(role);
         emp.setName(name);
         emp.setUsername(username);
         emp.setPassword(password);
+        emp.setRole(role);
         employeeRepo.save(emp);
-
-        // 2. Append to credentials.txt
-        try {
-            FileWriter fw = new FileWriter("credentials.txt", true);
-            fw.write("\n" + username + "," + password + ",EMPLOYEE");
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         return "redirect:/";
     }
 
     @PostMapping("/apply-leave")
-    public String applyLeave(@RequestParam String reason, HttpSession session) {
-        Employee sessionEmp = (Employee) session.getAttribute("user");
-        if (sessionEmp != null) {
-            Employee emp = employeeRepo.findById(sessionEmp.getId()).orElse(null);
-            if (emp != null && emp.getLeaveBalance() > 0) {
-                LeaveRequest req = emp.createLeaveRequest(reason);
-                leaveRepo.save(req);
-                
-                emp.setLeaveBalance(emp.getLeaveBalance() - 1);
-                employeeRepo.save(emp);
-            }
+    public String applyLeave(@RequestParam String reason, 
+                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+                             HttpSession session) {
+        Employee emp = employeeRepo.findById(((Employee) session.getAttribute("user")).getId()).get();
+        long daysRequested = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+        
+        if (daysRequested > 0 && emp.getLeaveBalance() >= daysRequested) {
+            LeaveRequest req = emp.createLeaveRequest(reason, startDate, endDate);
+            leaveRepo.save(req);
+            emp.setLeaveBalance(emp.getLeaveBalance() - (int)daysRequested);
+            employeeRepo.save(emp);
         }
         return "redirect:/";
     }
 
     @PostMapping("/update-leave")
-    public String updateLeaveStatus(@RequestParam Long leaveId, @RequestParam String action) {
-        LeaveRequest req = leaveRepo.findById(leaveId).orElse(null);
-        if (req != null && req.getStatus().equals("PENDING")) {
-            if (action.equals("APPROVE")) {
-                req.setStatus("APPROVED");
-            } else if (action.equals("REJECT")) {
-                req.setStatus("REJECTED");
-                Employee emp = req.getEmployee();
-                emp.setLeaveBalance(emp.getLeaveBalance() + 1); // Refund balance
-                employeeRepo.save(emp);
-            }
-            leaveRepo.save(req);
+    public String updateLeave(@RequestParam Long leaveId, @RequestParam String action) {
+        LeaveRequest req = leaveRepo.findById(leaveId).get();
+        req.setStatus(action);
+        if(action.equals("REJECTED")) {
+            long daysRefunded = ChronoUnit.DAYS.between(req.getStartDate(), req.getEndDate()) + 1;
+            req.getEmployee().setLeaveBalance(req.getEmployee().getLeaveBalance() + (int)daysRefunded);
+        }
+        leaveRepo.save(req);
+        return "redirect:/";
+    }
+
+    @PostMapping("/clock-in")
+    public String clockIn(HttpSession session) {
+        Employee emp = employeeRepo.findById(((Employee) session.getAttribute("user")).getId()).get();
+        boolean alreadyClockedIn = emp.getAttendanceRecords().stream().anyMatch(a -> a.getDate().equals(LocalDate.now()));
+        if (!alreadyClockedIn) {
+            AttendanceRecord record = new AttendanceRecord();
+            record.setEmployee(emp);
+            record.setDate(LocalDate.now());
+            record.setTimeIn(LocalTime.now());
+            attendanceRepo.save(record);
+        }
+        return "redirect:/";
+    }
+
+    @PostMapping("/clock-out")
+    public String clockOut(HttpSession session) {
+        Employee emp = employeeRepo.findById(((Employee) session.getAttribute("user")).getId()).get();
+        AttendanceRecord todayRecord = emp.getAttendanceRecords().stream()
+                .filter(a -> a.getDate().equals(LocalDate.now()))
+                .findFirst().orElse(null);
+
+        if (todayRecord != null && todayRecord.getTimeOut() == null) {
+            todayRecord.setTimeOut(LocalTime.now());
+            todayRecord.calculateHours(); 
+            attendanceRepo.save(todayRecord);
+        }
+        return "redirect:/";
+    }
+
+    @PostMapping("/generate-salary")
+    public String generateSalary(@RequestParam Long empId, @RequestParam double basic) {
+        Employee emp = employeeRepo.findById(empId).get();
+        SalarySlip slip = new SalarySlip();
+        slip.setEmployee(emp);
+        slip.setBasicPay(basic);
+        slip.generate(new LowTaxStrategy()); 
+        salaryRepo.save(slip);
+        return "redirect:/";
+    }
+
+    @PostMapping("/assign-department")
+    public String assignDepartment(@RequestParam Long empId, @RequestParam Long deptId) {
+        Employee emp = employeeRepo.findById(empId).orElse(null);
+        Department dept = departmentRepo.findById(deptId).orElse(null);
+        if (emp != null && dept != null) {
+            emp.setDepartment(dept);
+            employeeRepo.save(emp);
+        }
+        return "redirect:/";
+    }
+
+    @PostMapping("/assign-project")
+    public String assignProject(@RequestParam Long empId, @RequestParam Long projId) {
+        Employee emp = employeeRepo.findById(empId).orElse(null);
+        Project proj = projectRepo.findById(projId).orElse(null);
+        if (emp != null && proj != null) {
+            emp.getProjects().add(proj);
+            employeeRepo.save(emp);
+        }
+        return "redirect:/";
+    }
+
+    @PostMapping("/update-project")
+    public String updateProjectProgress(@RequestParam Long projId, @RequestParam int progressPercent) {
+        Project proj = projectRepo.findById(projId).orElse(null);
+        if (proj != null) {
+            proj.setProgressPercent(progressPercent);
+            projectRepo.save(proj);
         }
         return "redirect:/";
     }

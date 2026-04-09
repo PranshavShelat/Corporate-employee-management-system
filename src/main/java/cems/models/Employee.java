@@ -6,9 +6,9 @@ import lombok.EqualsAndHashCode;
 import java.time.LocalDate;
 import java.util.List;
 
+@Entity
 @Data
 @EqualsAndHashCode(callSuper = true)
-@Entity
 public class Employee extends User {
     private String name;
     private String phone;
@@ -16,6 +16,9 @@ public class Employee extends User {
 
     @ManyToOne
     private Department department;
+
+    @ManyToMany
+    private List<Project> projects;
 
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL)
     private List<LeaveRequest> leaveRequests;
@@ -26,14 +29,14 @@ public class Employee extends User {
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL)
     private List<SalarySlip> salarySlips;
 
-    // GRASP Principle: CREATOR
-    // Employee is responsible for creating its own LeaveRequests
-    public LeaveRequest createLeaveRequest(String reason) {
+    // GRASP PRINCIPLE 1: CREATOR
+    // Updated to accept actual user-selected dates!
+    public LeaveRequest createLeaveRequest(String reason, LocalDate startDate, LocalDate endDate) {
         LeaveRequest req = new LeaveRequest();
         req.setEmployee(this);
         req.setType(reason);
-        req.setStartDate(LocalDate.now());
-        req.setEndDate(LocalDate.now().plusDays(1));
+        req.setStartDate(startDate);
+        req.setEndDate(endDate);
         req.setStatus("PENDING");
         return req;
     }

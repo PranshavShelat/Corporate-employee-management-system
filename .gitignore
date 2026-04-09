@@ -1,3 +1,17 @@
+# Compiled class file
+*.class
+
+# Maven
 target/
-.vscode/
 *.jar
+*.war
+
+# VS Code specific
+.vscode/
+
+# Ignore the old text file just in case it's still lingering
+credentials.txt
+
+# Mac/Windows system files
+.DS_Store
+Thumbs.db
