@@ -37,6 +37,10 @@
 
         details { background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem; }
         summary { font-weight: bold; cursor: pointer; color: var(--primary); outline: none; }
+        
+        .alert { padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }
+        .alert-error { background-color: #fee2e2; color: #dc2626; border: 1px solid #f87171; }
+        .alert-success { background-color: #d1fae5; color: #059669; border: 1px solid #34d399; }
     </style>
 </head>
 <body>
@@ -52,9 +56,7 @@
 <div class="container" th:if="${session.role == null}" style="max-width: 400px; text-align: center; margin-top: 5rem;">
     <div class="card">
         <h2>Sign In</h2>
-        <div th:if="${param.error}" style="color: #dc2626; background: #fee2e2; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #f87171;">
-            Invalid Credentials!
-        </div>
+        <div th:if="${param.error}" class="alert alert-error">Invalid Credentials!</div>
         <form action="/login" method="post">
             <input type="text" name="username" placeholder="Username" required style="margin-bottom: 1rem;">
             <input type="password" name="password" placeholder="Password" required style="margin-bottom: 1rem;">
@@ -66,14 +68,14 @@
 <div class="container" th:if="${session.role != null}">
 
     <div th:if="${session.role == 'ADMIN'}">
-        
         <div class="card">
-            <h3>🔐 System User Roster</h3>
+            <h3>System User Roster</h3>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
                             <th>Name</th>
+                            <th>Username</th>
                             <th>Role</th>
                             <th>Department</th>
                             <th>Assigned Projects</th>
@@ -84,6 +86,7 @@
                     <tbody>
                         <tr th:each="emp : ${employees}">
                             <td th:text="${emp.name}" style="font-weight: 500;"></td>
+                            <td th:text="${emp.username}" style="color: #4b5563;"></td>
                             <td><span class="badge" th:text="${emp.role}"></span></td>
                             <td th:text="${emp.department != null ? emp.department.deptName : 'Unassigned'}" style="font-style: italic; color: gray;"></td>
                             <td>
@@ -94,8 +97,13 @@
                                 <span th:id="'pwd-mask-' + ${emp.id}">••••••••</span>
                                 <span th:id="'pwd-real-' + ${emp.id}" th:text="${emp.password}" style="display: none; font-family: monospace; color: var(--primary); font-weight: bold;"></span>
                             </td>
-                            <td style="text-align: center;">
-                                <button type="button" th:onclick="'togglePwd(' + ${emp.id} + ', this)'" style="width: auto; padding: 0.3rem 0.6rem; background-color: #6b7280; font-size: 0.8rem;">👁️ Show</button>
+                            <td style="display: flex; gap: 5px; justify-content: center; align-items: center;">
+                                <button type="button" th:onclick="'togglePwd(' + ${emp.id} + ', this)'" style="width: auto; padding: 0.3rem 0.6rem; background-color: #6b7280; font-size: 0.8rem;">Show</button>
+                                
+                                <form action="/delete-user" method="post" style="margin: 0;" onsubmit="return confirm('Are you sure you want to completely delete this user? This cannot be undone.');">
+                                    <input type="hidden" name="empId" th:value="${emp.id}">
+                                    <button type="submit" style="width: auto; padding: 0.3rem 0.6rem; background-color: #ef4444; font-size: 0.8rem;">Delete</button>
+                                </form>
                             </td>
                         </tr>
                     </tbody>
@@ -121,7 +129,7 @@
             </div>
 
             <div class="card">
-                <h3>🔗 Assign Employees</h3>
+                <h3>Assign Employees</h3>
                 <form action="/assign-department" method="post" class="form-row" style="margin-bottom: 1.5rem;">
                     <select name="empId" required><option value="" disabled selected>Select Employee</option><option th:each="emp : ${employees}" th:value="${emp.id}" th:text="${emp.name}"></option></select>
                     <select name="deptId" required><option value="" disabled selected>Select Department</option><option th:each="dept : ${departments}" th:value="${dept.id}" th:text="${dept.deptName}"></option></select>
@@ -138,7 +146,7 @@
 
         <div class="grid-2">
             <div class="card">
-                <h3>🏢 Manage Departments</h3>
+                <h3>Manage Departments</h3>
                 <form action="/add-department" method="post" class="form-row">
                     <input type="text" name="deptName" placeholder="Dept Name" required>
                     <input type="text" name="location" placeholder="Location" required>
@@ -151,7 +159,7 @@
             </div>
 
             <div class="card">
-                <h3>📋 Manage Projects</h3>
+                <h3>Manage Projects</h3>
                 <form action="/add-project" method="post" class="form-row">
                     <input type="text" name="title" placeholder="Project Title" required>
                     <button type="submit" style="width: auto;">Add</button>
@@ -164,10 +172,9 @@
         </div>
 
         <div class="card">
-            <h3>⏱️ System Attendance Logs</h3>
-            
+            <h3>System Attendance Logs</h3>
             <details>
-                <summary>📥 View Active Clock-Ins</summary>
+                <summary>View Active Clock-Ins</summary>
                 <table style="margin-top: 1rem;">
                     <tr><th>Employee</th><th>Date</th><th>Clock-In Time</th></tr>
                     <tr th:each="att : ${attendances}">
@@ -178,9 +185,8 @@
                     <tr th:if="${#lists.isEmpty(attendances)}"><td colspan="3" style="color: gray;">No clock-ins recorded.</td></tr>
                 </table>
             </details>
-
             <details style="margin-top: 1rem;">
-                <summary>📤 View Completed Shifts (Clock-Outs)</summary>
+                <summary>View Completed Shifts (Clock-Outs)</summary>
                 <table style="margin-top: 1rem;">
                     <tr><th>Employee</th><th>Date</th><th>Clock-Out Time</th><th>Total Hours</th></tr>
                     <tr th:each="att : ${attendances}" th:if="${att.timeOut != null}">
@@ -210,15 +216,23 @@
         </div>
 
         <div class="card">
-            <h3>💰 Run Payroll (Strategy Pattern)</h3>
+            <h3>Run Payroll (Strategy Pattern)</h3>
             <table>
-                <tr><th>Employee</th><th>Basic Pay ($)</th><th>Action</th></tr>
+                <tr>
+                    <th>Employee</th>
+                    <th>Basic Pay ($)</th>
+                    <th>Action</th>
+                </tr>
                 <tr th:each="emp : ${employees}">
                     <td th:text="${emp.name}"></td>
+                    
                     <td>
-                        <form action="/generate-salary" method="post" style="margin:0; display:flex; gap: 10px;">
+                        <input type="number" name="basic" th:attr="form='salary-form-' + ${emp.id}" placeholder="e.g. 5000" style="margin:0; width: 150px;" required>
+                    </td>
+                    
+                    <td>
+                        <form th:id="'salary-form-' + ${emp.id}" action="/generate-salary" method="post" style="margin:0;">
                             <input type="hidden" name="empId" th:value="${emp.id}">
-                            <input type="number" name="basic" placeholder="e.g. 5000" style="margin:0;" required>
                             <button type="submit" style="width: auto;">Generate Slip</button>
                         </form>
                     </td>
@@ -234,20 +248,20 @@
             
             <div style="display: flex; gap: 10px;">
                 <form action="/clock-in" method="post" style="margin: 0;">
-                    <button th:if="${!clockedInToday}" type="submit" style="background-color: #059669; padding: 0.75rem 1.5rem;">📥 Clock In</button>
-                    <button th:if="${clockedInToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">✅ Clocked In</button>
+                    <button th:if="${!clockedInToday}" type="submit" style="background-color: #059669; padding: 0.75rem 1.5rem;">Clock In</button>
+                    <button th:if="${clockedInToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">Clocked In</button>
                 </form>
 
                 <form action="/clock-out" method="post" style="margin: 0;">
-                    <button th:if="${clockedInToday and !clockedOutToday}" type="submit" style="background-color: #dc2626; padding: 0.75rem 1.5rem;">📤 Clock Out</button>
-                    <button th:if="${clockedOutToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">🔒 Shift Ended</button>
-                    <button th:if="${!clockedInToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">📤 Clock Out</button>
+                    <button th:if="${clockedInToday and !clockedOutToday}" type="submit" style="background-color: #dc2626; padding: 0.75rem 1.5rem;">Clock Out</button>
+                    <button th:if="${clockedOutToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">Shift Ended</button>
+                    <button th:if="${!clockedInToday}" type="button" disabled style="padding: 0.75rem 1.5rem;">Clock Out</button>
                 </form>
             </div>
         </div>
 
         <div class="card" th:if="${session.role == 'MANAGER'}" style="border: 2px solid #8b5cf6; background-color: #f5f3ff;">
-            <h3 style="color: #6d28d9; border-bottom-color: #ddd6fe;">👑 Manager Portal: My Department Team</h3>
+            <h3 style="color: #6d28d9; border-bottom-color: #ddd6fe;">Manager Portal: My Department Team</h3>
             
             <div th:if="${employee.department == null}" style="color: gray; text-align: center; padding: 1rem;">
                 You have not been assigned to a Department yet. Contact your Admin.
@@ -265,7 +279,7 @@
 
         <div class="grid-2">
             <div class="card">
-                <h3>🛠️ My Assigned Projects</h3>
+                <h3>My Assigned Projects</h3>
                 <table>
                     <tr><th>Title</th><th>Current</th><th>Update Progress</th></tr>
                     <tr th:each="proj : ${employee.projects}">
@@ -285,9 +299,23 @@
 
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
-                    <h3 style="margin: 0; border: none; padding: 0;">📝 Apply for Leave</h3>
+                    <h3 style="margin: 0; border: none; padding: 0;">Apply for Leave</h3>
                     <span class="badge">Balance: <span th:text="${employee.leaveBalance}"></span> days</span>
                 </div>
+                
+                <div th:if="${param.leaveError != null and param.leaveError[0] == 'balance'}" class="alert alert-error">
+                    Error: You do not have enough leave balance to request that many days.
+                </div>
+                <div th:if="${param.leaveError != null and param.leaveError[0] == 'overlap'}" class="alert alert-error">
+                    Error: You already have a pending or approved leave request overlapping with those dates.
+                </div>
+                <div th:if="${param.leaveError != null and param.leaveError[0] == 'invalid_dates'}" class="alert alert-error">
+                    Error: The End Date cannot be before the Start Date.
+                </div>
+                <div th:if="${param.leaveSuccess != null}" class="alert alert-success">
+                    Success: Leave request submitted and balance updated!
+                </div>
+
                 <form action="/apply-leave" method="post">
                     <input type="text" name="reason" placeholder="Reason (e.g. Vacation, Sick)" required>
                     <div class="form-row">
@@ -339,12 +367,12 @@
         if (real.style.display === 'none') {
             real.style.display = 'inline';
             mask.style.display = 'none';
-            btn.innerHTML = '🙈 Hide';
+            btn.innerHTML = 'Hide';
             btn.style.backgroundColor = '#dc2626';
         } else {
             real.style.display = 'none';
             mask.style.display = 'inline';
-            btn.innerHTML = '👁️ Show';
+            btn.innerHTML = 'Show';
             btn.style.backgroundColor = '#6b7280';
         }
     }

@@ -41,9 +41,7 @@ public class CemsController {
             model.addAttribute("myLeaves", emp.getLeaveRequests());
             model.addAttribute("mySlips", emp.getSalarySlips());
             
-            // --- NEW: MANAGER SPECIFIC DATA ---
             if (emp.getRole().equals("MANAGER") && emp.getDepartment() != null) {
-                // Pass the whole department roster to the manager
                 model.addAttribute("myTeam", emp.getDepartment().getEmployees());
             }
             
@@ -96,6 +94,14 @@ public class CemsController {
         return "redirect:/";
     }
 
+    // --- NEW: DELETE USER LOGIC ---
+    @PostMapping("/delete-user")
+    public String deleteUser(@RequestParam Long empId) {
+        employeeRepo.deleteById(empId);
+        return "redirect:/";
+    }
+
+    // --- UPDATED LEAVE LOGIC WITH VALIDATION ---
     @PostMapping("/apply-leave")
     public String applyLeave(@RequestParam String reason, 
                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -104,13 +110,33 @@ public class CemsController {
         Employee emp = employeeRepo.findById(((Employee) session.getAttribute("user")).getId()).get();
         long daysRequested = ChronoUnit.DAYS.between(startDate, endDate) + 1;
         
-        if (daysRequested > 0 && emp.getLeaveBalance() >= daysRequested) {
-            LeaveRequest req = emp.createLeaveRequest(reason, startDate, endDate);
-            leaveRepo.save(req);
-            emp.setLeaveBalance(emp.getLeaveBalance() - (int)daysRequested);
-            employeeRepo.save(emp);
+        // Validation 1: Negative or zero days (End date is before Start Date)
+        if (daysRequested <= 0) {
+            return "redirect:/?leaveError=invalid_dates";
         }
-        return "redirect:/";
+
+        // Validation 2: Insufficient Balance
+        if (emp.getLeaveBalance() < daysRequested) {
+            return "redirect:/?leaveError=balance";
+        }
+
+        // Validation 3: Overlapping dates with existing PENDING or APPROVED leaves
+        for (LeaveRequest existingReq : emp.getLeaveRequests()) {
+            if (!existingReq.getStatus().equals("REJECTED")) {
+                // If new start date is <= old end date AND new end date >= old start date, it's an overlap!
+                if (!startDate.isAfter(existingReq.getEndDate()) && !endDate.isBefore(existingReq.getStartDate())) {
+                    return "redirect:/?leaveError=overlap";
+                }
+            }
+        }
+        
+        // If it passes all checks, save it!
+        LeaveRequest req = emp.createLeaveRequest(reason, startDate, endDate);
+        leaveRepo.save(req);
+        emp.setLeaveBalance(emp.getLeaveBalance() - (int)daysRequested);
+        employeeRepo.save(emp);
+        
+        return "redirect:/?leaveSuccess=true";
     }
 
     @PostMapping("/update-leave")
