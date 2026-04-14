@@ -6,12 +6,14 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 
 @Controller
 public class CemsController {
@@ -94,14 +96,22 @@ public class CemsController {
         return "redirect:/";
     }
 
-    // --- NEW: DELETE USER LOGIC ---
+    // --- SAFE DELETE FIX ---
     @PostMapping("/delete-user")
+    @Transactional
     public String deleteUser(@RequestParam Long empId) {
-        employeeRepo.deleteById(empId);
+        Employee emp = employeeRepo.findById(empId).orElse(null);
+        if (emp != null) {
+            // Using .clear() preserves Hibernate's PersistentBag and forces a clean DB un-link
+            if (emp.getProjects() != null) {
+                emp.getProjects().clear(); 
+            }
+            employeeRepo.save(emp); 
+            employeeRepo.deleteById(empId);
+        }
         return "redirect:/";
     }
 
-    // --- UPDATED LEAVE LOGIC WITH VALIDATION ---
     @PostMapping("/apply-leave")
     public String applyLeave(@RequestParam String reason, 
                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -110,32 +120,21 @@ public class CemsController {
         Employee emp = employeeRepo.findById(((Employee) session.getAttribute("user")).getId()).get();
         long daysRequested = ChronoUnit.DAYS.between(startDate, endDate) + 1;
         
-        // Validation 1: Negative or zero days (End date is before Start Date)
-        if (daysRequested <= 0) {
-            return "redirect:/?leaveError=invalid_dates";
-        }
+        if (daysRequested <= 0) return "redirect:/?leaveError=invalid_dates";
+        if (emp.getLeaveBalance() < daysRequested) return "redirect:/?leaveError=balance";
 
-        // Validation 2: Insufficient Balance
-        if (emp.getLeaveBalance() < daysRequested) {
-            return "redirect:/?leaveError=balance";
-        }
-
-        // Validation 3: Overlapping dates with existing PENDING or APPROVED leaves
         for (LeaveRequest existingReq : emp.getLeaveRequests()) {
             if (!existingReq.getStatus().equals("REJECTED")) {
-                // If new start date is <= old end date AND new end date >= old start date, it's an overlap!
                 if (!startDate.isAfter(existingReq.getEndDate()) && !endDate.isBefore(existingReq.getStartDate())) {
                     return "redirect:/?leaveError=overlap";
                 }
             }
         }
         
-        // If it passes all checks, save it!
         LeaveRequest req = emp.createLeaveRequest(reason, startDate, endDate);
         leaveRepo.save(req);
         emp.setLeaveBalance(emp.getLeaveBalance() - (int)daysRequested);
         employeeRepo.save(emp);
-        
         return "redirect:/?leaveSuccess=true";
     }
 
@@ -183,9 +182,12 @@ public class CemsController {
     @PostMapping("/generate-salary")
     public String generateSalary(@RequestParam Long empId, @RequestParam double basic) {
         Employee emp = employeeRepo.findById(empId).get();
-        SalarySlip slip = new SalarySlip();
-        slip.setEmployee(emp);
-        slip.setBasicPay(basic);
+        
+        SalarySlip slip = new SalarySlip.Builder()
+                                .withEmployee(emp)
+                                .withBasicPay(basic)
+                                .build();
+                                
         slip.generate(new LowTaxStrategy()); 
         salaryRepo.save(slip);
         return "redirect:/";
@@ -203,12 +205,19 @@ public class CemsController {
     }
 
     @PostMapping("/assign-project")
+    @Transactional
     public String assignProject(@RequestParam Long empId, @RequestParam Long projId) {
         Employee emp = employeeRepo.findById(empId).orElse(null);
         Project proj = projectRepo.findById(projId).orElse(null);
+        
         if (emp != null && proj != null) {
-            emp.getProjects().add(proj);
-            employeeRepo.save(emp);
+            if (emp.getProjects() == null) {
+                emp.setProjects(new ArrayList<>());
+            }
+            if (!emp.getProjects().contains(proj)) {
+                emp.getProjects().add(proj);
+                employeeRepo.save(emp);
+            }
         }
         return "redirect:/";
     }
@@ -219,6 +228,66 @@ public class CemsController {
         if (proj != null) {
             proj.setProgressPercent(progressPercent);
             projectRepo.save(proj);
+        }
+        return "redirect:/";
+    }
+
+    @PostMapping("/clone-project")
+    public String cloneProject(@RequestParam Long projId) {
+        Project proj = projectRepo.findById(projId).orElse(null);
+        if (proj != null) {
+            Project clonedProj = proj.clone();
+            projectRepo.save(clonedProj);
+        }
+        return "redirect:/";
+    }
+
+    @PostMapping("/add-department")
+    public String addDepartment(@RequestParam String deptName, @RequestParam String location) {
+        Department dept = new Department();
+        dept.setDeptName(deptName);
+        dept.setLocation(location);
+        departmentRepo.save(dept);
+        return "redirect:/";
+    }
+
+    @PostMapping("/delete-department")
+    @Transactional
+    public String deleteDepartment(@RequestParam Long deptId) {
+        Department dept = departmentRepo.findById(deptId).orElse(null);
+        if (dept != null) {
+            for (Employee emp : employeeRepo.findAll()) {
+                if (emp.getDepartment() != null && emp.getDepartment().getId().equals(deptId)) {
+                    emp.setDepartment(null);
+                    employeeRepo.save(emp);
+                }
+            }
+            departmentRepo.deleteById(deptId);
+        }
+        return "redirect:/";
+    }
+
+    @PostMapping("/add-project")
+    public String addProject(@RequestParam String title) {
+        Project proj = new Project();
+        proj.setTitle(title);
+        proj.setProgressPercent(0);
+        projectRepo.save(proj);
+        return "redirect:/";
+    }
+
+    @PostMapping("/delete-project")
+    @Transactional
+    public String deleteProject(@RequestParam Long projId) {
+        Project proj = projectRepo.findById(projId).orElse(null);
+        if (proj != null) {
+            for (Employee emp : employeeRepo.findAll()) {
+                if (emp.getProjects() != null && emp.getProjects().contains(proj)) {
+                    emp.getProjects().remove(proj); // Cleanly removes from PersistentBag
+                    employeeRepo.save(emp);
+                }
+            }
+            projectRepo.deleteById(projId);
         }
         return "redirect:/";
     }

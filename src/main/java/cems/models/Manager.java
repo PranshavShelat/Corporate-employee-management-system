@@ -1,10 +1,12 @@
 package cems.models;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.DiscriminatorValue;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Entity
+@DiscriminatorValue("MANAGER")
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class Manager extends Employee {
