@@ -96,13 +96,11 @@ public class CemsController {
         return "redirect:/";
     }
 
-    // --- SAFE DELETE FIX ---
     @PostMapping("/delete-user")
     @Transactional
     public String deleteUser(@RequestParam Long empId) {
         Employee emp = employeeRepo.findById(empId).orElse(null);
         if (emp != null) {
-            // Using .clear() preserves Hibernate's PersistentBag and forces a clean DB un-link
             if (emp.getProjects() != null) {
                 emp.getProjects().clear(); 
             }
@@ -232,6 +230,16 @@ public class CemsController {
         return "redirect:/";
     }
 
+    @PostMapping("/rename-project")
+    public String renameProject(@RequestParam Long projId, @RequestParam String newTitle) {
+        Project proj = projectRepo.findById(projId).orElse(null);
+        if (proj != null && newTitle != null && !newTitle.trim().isEmpty()) {
+            proj.setTitle(newTitle.trim());
+            projectRepo.save(proj);
+        }
+        return "redirect:/";
+    }
+
     @PostMapping("/clone-project")
     public String cloneProject(@RequestParam Long projId) {
         Project proj = projectRepo.findById(projId).orElse(null);
@@ -283,7 +291,7 @@ public class CemsController {
         if (proj != null) {
             for (Employee emp : employeeRepo.findAll()) {
                 if (emp.getProjects() != null && emp.getProjects().contains(proj)) {
-                    emp.getProjects().remove(proj); // Cleanly removes from PersistentBag
+                    emp.getProjects().remove(proj); 
                     employeeRepo.save(emp);
                 }
             }

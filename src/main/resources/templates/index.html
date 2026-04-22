@@ -180,6 +180,13 @@
                                 <input type="hidden" name="projId" th:value="${proj.id}">
                                 <button type="submit" style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.8rem; background-color: #8b5cf6;">Clone</button>
                             </form>
+                            
+                            <form action="/rename-project" method="post" style="margin: 0;" onsubmit="return renameProject(this);">
+                                <input type="hidden" name="projId" th:value="${proj.id}">
+                                <input type="hidden" name="newTitle" class="new-title-input">
+                                <button type="submit" style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.8rem; background-color: #3b82f6;">Rename</button>
+                            </form>
+
                             <form action="/delete-project" method="post" style="margin: 0;" onsubmit="return confirm('Delete this project?');">
                                 <input type="hidden" name="projId" th:value="${proj.id}">
                                 <button type="submit" style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.8rem; background-color: #ef4444;">Delete</button>
@@ -392,6 +399,15 @@
             btn.innerHTML = 'Show';
             btn.style.backgroundColor = '#6b7280';
         }
+    }
+
+    function renameProject(form) {
+        const newName = prompt("Enter the new project title:");
+        if (newName && newName.trim() !== "") {
+            form.querySelector('.new-title-input').value = newName.trim();
+            return true;
+        }
+        return false; // Prevents form submission if user clicks cancel or enters blank
     }
 </script>
 
